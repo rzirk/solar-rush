@@ -9,6 +9,7 @@ class GameScene extends Phaser.Scene {
     init() {
         // Spielmodus aus Registry abrufen
         this.gameMode = this.registry.get('gameMode') || 'single';
+        this.playerRole = this.registry.get('playerRole');
         
         // Spielvariablen initialisieren
         this.gameOver = false;
@@ -21,6 +22,17 @@ class GameScene extends Phaser.Scene {
         // Spielobjekte
         this.energySources = [];
         this.grid = null;
+        
+        // Rollen-spezifische Boni
+        this.roleBonus = {
+            collectionMultiplier: 1.0,
+            repairTimeMultiplier: 1.0,
+            warningTimeMultiplier: 1.0,
+            gridEfficiencyMultiplier: 1.0
+        };
+        
+        // Rollen-Boni anwenden
+        this.applyRoleBonus();
     }
 
     create() {
@@ -42,9 +54,13 @@ class GameScene extends Phaser.Scene {
         this.scene.launch('UIScene');
         this.scene.get('UIScene').events.on('timeUp', this.onTimeUp, this);
         
+        // Rolle an UI-Szene übergeben
+        this.events.emit('setPlayerRole', this.playerRole);
+        
         // Ereignis-Timer für zufällige Hindernisse
+        const obstacleDelay = 20000 * this.roleBonus.warningTimeMultiplier;
         this.obstacleTimer = this.time.addEvent({
-            delay: 20000, // Alle 20 Sekunden
+            delay: obstacleDelay, // Angepasst je nach Rolle
             callback: this.spawnRandomObstacle,
             callbackScope: this,
             loop: true
@@ -127,9 +143,10 @@ class GameScene extends Phaser.Scene {
     
     // Energie sammeln (von EnergySource aufgerufen)
     energyCollected(amount) {
-        // Energie zum Grid hinzufügen
-        if (this.grid.addEnergy(amount)) {
-            this.energyCollected += amount;
+        // Energie zum Grid hinzufügen, mit Rollen-Bonus
+        const adjustedAmount = amount * this.roleBonus.collectionMultiplier;
+        if (this.grid.addEnergy(adjustedAmount)) {
+            this.energyCollected += adjustedAmount;
             this.updateUI();
         }
     }
@@ -237,5 +254,34 @@ class GameScene extends Phaser.Scene {
             });
             totalDelay += step.delay;
         });
+    }
+    
+    // Rollen-Boni anwenden
+    applyRoleBonus() {
+        if (!this.playerRole) return;
+        
+        switch (this.playerRole) {
+            case 'Collector':
+                // Collector sammelt 20% mehr Energie
+                this.roleBonus.collectionMultiplier = 1.2;
+                break;
+                
+            case 'Engineer':
+                // Engineer repariert 30% schneller
+                this.roleBonus.repairTimeMultiplier = 0.7;
+                // Diese Anpassung wird in der EnergySource-Klasse angewendet
+                break;
+                
+            case 'Strategist':
+                // Strategist erhält 50% frühere Warnungen
+                this.roleBonus.warningTimeMultiplier = 1.5;
+                break;
+                
+            case 'Grid Manager':
+                // Grid Manager erhöht die Effizienz des Netzes um 15%
+                this.roleBonus.gridEfficiencyMultiplier = 1.15;
+                // Diese Anpassung wird in der Grid-Klasse angewendet
+                break;
+        }
     }
 }

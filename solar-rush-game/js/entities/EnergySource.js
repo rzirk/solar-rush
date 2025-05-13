@@ -117,8 +117,15 @@ class EnergySource {
         this.repairing = true;
         this.statusText.setText('Reparatur...');
         
-        // Reparatur-Timer
-        this.scene.time.delayedCall(this.config.repairTime, () => {
+        // Reparatur-Timer mit Rollen-Bonus
+        let repairTime = this.config.repairTime;
+        
+        // Wenn der Spieler die Engineer-Rolle hat, repariert er schneller
+        if (this.scene.playerRole === 'Engineer') {
+            repairTime *= this.scene.roleBonus.repairTimeMultiplier;
+        }
+        
+        this.scene.time.delayedCall(repairTime, () => {
             this.broken = false;
             this.repairing = false;
             this.efficiency = 1.0;

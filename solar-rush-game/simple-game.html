@@ -72,6 +72,59 @@
             background-repeat: no-repeat;
         }
         
+        .broken {
+            filter: grayscale(100%) brightness(50%);
+        }
+        
+        .status-text {
+            position: absolute;
+            font-size: 12px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-align: center;
+            width: 100px;
+            transform: translateX(-18px);
+        }
+        
+        .warning-text {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .grid-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .grid-fill {
+            height: 20px;
+            background-color: #00ff00;
+            width: 0%;
+            transition: width 0.5s, background-color 0.5s;
+        }
+        
+        .grid-text {
+            color: white;
+            font-size: 14px;
+            margin-top: 5px;
+            text-align: center;
+        }
+        
         .solar {
             top: 200px;
             left: 200px;
@@ -100,12 +153,150 @@
             Erreiche das Energieziel, bevor die Zeit abläuft!
         </div>
         
-        <div class="button" onclick="startGame()">Einzelspieler</div>
+        <div class="button" onclick="showRoleSelection()">Einzelspieler</div>
         <div class="button" onclick="startTutorial()">Tutorial</div>
         <div class="button" onclick="if(confirm('Möchten Sie das Spiel wirklich beenden?')) window.close()">Beenden</div>
     </div>
     
     <script>
+        // Globale Variablen
+        let selectedRole = null;
+        let roleBonus = {
+            collectionMultiplier: 1.0,
+            repairTimeMultiplier: 1.0,
+            warningTimeMultiplier: 1.0,
+            gridEfficiencyMultiplier: 1.0
+        };
+        let energySources = [];
+        let warningTimeout = null;
+        let gridCapacity = 0;
+        let gridMaxCapacity = 100;
+        let gridConsumptionRate = 1; // Einheiten pro Sekunde
+        let eventTimer = null;
+        
+        function showRoleSelection() {
+            const gameContainer = document.getElementById('game-container');
+            gameContainer.innerHTML = '';
+            gameContainer.style.backgroundColor = '#0c4a6e';
+            gameContainer.style.backgroundImage = '';
+            
+            // Titel für Rollenauswahl
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'title';
+            titleDiv.textContent = 'Wähle deine Rolle';
+            titleDiv.style.marginTop = '50px';
+            gameContainer.appendChild(titleDiv);
+            
+            // Hinweis zur Rollenauswahl
+            const hintDiv = document.createElement('div');
+            hintDiv.className = 'subtitle';
+            hintDiv.textContent = 'Jede Rolle hat ihre eigenen Stärken, aber alle können alle Aufgaben erledigen.';
+            hintDiv.style.fontSize = '16px';
+            hintDiv.style.marginTop = '20px';
+            gameContainer.appendChild(hintDiv);
+            
+            // Rollen-Beschreibungen
+            const roles = [
+                {
+                    name: 'Collector',
+                    description: 'Sammelt Tokens von Energiequellen',
+                    color: '#ffcc00',
+                    top: 180
+                },
+                {
+                    name: 'Engineer',
+                    description: 'Repariert defekte Quellen schneller',
+                    color: '#00ccff',
+                    top: 260
+                },
+                {
+                    name: 'Strategist',
+                    description: 'Erhält frühere Warnungen vor Ereignissen',
+                    color: '#ff6600',
+                    top: 340
+                },
+                {
+                    name: 'Grid Manager',
+                    description: 'Überwacht Speicher und Balance zwischen Quellen und Verbrauchern',
+                    color: '#00ff00',
+                    top: 420
+                }
+            ];
+            
+            // Rollen-Buttons erstellen
+            roles.forEach(role => {
+                const roleButton = document.createElement('div');
+                roleButton.style.position = 'absolute';
+                roleButton.style.left = '50%';
+                roleButton.style.top = role.top + 'px';
+                roleButton.style.transform = 'translateX(-50%)';
+                roleButton.style.width = '300px';
+                roleButton.style.height = '60px';
+                roleButton.style.backgroundColor = role.color;
+                roleButton.style.borderRadius = '5px';
+                roleButton.style.cursor = 'pointer';
+                roleButton.style.padding = '10px';
+                
+                // Rollen-Name
+                const roleName = document.createElement('div');
+                roleName.style.color = 'white';
+                roleName.style.fontWeight = 'bold';
+                roleName.style.fontSize = '18px';
+                roleName.textContent = role.name;
+                roleButton.appendChild(roleName);
+                
+                // Rollen-Beschreibung
+                const roleDesc = document.createElement('div');
+                roleDesc.style.color = 'white';
+                roleDesc.style.fontSize = '14px';
+                roleDesc.style.marginTop = '5px';
+                roleDesc.textContent = role.description;
+                roleButton.appendChild(roleDesc);
+                
+                // Klick-Handler
+                roleButton.onclick = function() {
+                    selectRole(role.name);
+                };
+                
+                gameContainer.appendChild(roleButton);
+            });
+            
+            // Zurück-Button
+            const backButton = document.createElement('div');
+            backButton.className = 'button';
+            backButton.style.position = 'absolute';
+            backButton.style.bottom = '20px';
+            backButton.style.left = '50%';
+            backButton.style.transform = 'translateX(-50%)';
+            backButton.textContent = 'Zurück zum Hauptmenü';
+            backButton.onclick = function() {
+                location.reload();
+            };
+            gameContainer.appendChild(backButton);
+        }
+        
+        function selectRole(roleName) {
+            selectedRole = roleName;
+            
+            // Rollen-Boni anwenden
+            switch (roleName) {
+                case 'Collector':
+                    roleBonus.collectionMultiplier = 1.2; // 20% mehr Energie
+                    break;
+                case 'Engineer':
+                    roleBonus.repairTimeMultiplier = 0.7; // 30% schnellere Reparatur
+                    break;
+                case 'Strategist':
+                    roleBonus.warningTimeMultiplier = 1.5; // 50% frühere Warnungen
+                    break;
+                case 'Grid Manager':
+                    roleBonus.gridEfficiencyMultiplier = 1.15; // 15% höhere Netzeffizienz
+                    break;
+            }
+            
+            startGame();
+        }
+        
         function startGame() {
             const gameContainer = document.getElementById('game-container');
             gameContainer.innerHTML = '';
@@ -119,6 +310,15 @@
             createEnergySource('wind', 'Windturbine', 400, 200);
             createEnergySource('hydro', 'Wasserkraftwerk', 600, 200);
             
+            // Grid erstellen
+            createGrid();
+            
+            // Verbrauchstimer starten
+            startConsumptionTimer();
+            
+            // Zufallsereignisse starten
+            startRandomEvents();
+            
             // Spielinfo
             const infoDiv = document.createElement('div');
             infoDiv.style.position = 'absolute';
@@ -127,7 +327,45 @@
             infoDiv.style.color = 'white';
             infoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             infoDiv.style.padding = '10px';
-            infoDiv.innerHTML = 'Energie: 0/100<br>Zeit: 5:00';
+            
+            let infoContent = `Energie: ${gridCapacity}/${gridMaxCapacity}<br>Zeit: 5:00`;
+            
+            // Rolle anzeigen, wenn ausgewählt
+            if (selectedRole) {
+                let roleColor;
+                switch (selectedRole) {
+                    case 'Collector': roleColor = '#ffcc00'; break;
+                    case 'Engineer': roleColor = '#00ccff'; break;
+                    case 'Strategist': roleColor = '#ff6600'; break;
+                    case 'Grid Manager': roleColor = '#00ff00'; break;
+                    default: roleColor = 'white';
+                }
+                
+                infoContent += `<br><span style="color: ${roleColor}">Rolle: ${selectedRole}</span>`;
+                
+                // Bonus-Info anzeigen
+                let bonusText = '';
+                switch (selectedRole) {
+                    case 'Collector':
+                        bonusText = 'Bonus: Sammelt 20% mehr Energie';
+                        break;
+                    case 'Engineer':
+                        bonusText = 'Bonus: Repariert 30% schneller';
+                        break;
+                    case 'Strategist':
+                        bonusText = 'Bonus: Erhält 50% frühere Warnungen';
+                        break;
+                    case 'Grid Manager':
+                        bonusText = 'Bonus: 15% höhere Netzeffizienz';
+                        break;
+                }
+                
+                if (bonusText) {
+                    infoContent += `<br><span style="font-size: 12px">${bonusText}</span>`;
+                }
+            }
+            
+            infoDiv.innerHTML = infoContent;
             gameContainer.appendChild(infoDiv);
             
             // Zurück-Button
@@ -184,38 +422,383 @@
             
             source.style.backgroundImage = `url(${imagePath})`;
             
-            source.onclick = function() {
-                // Energietoken-Animation beim Sammeln
-                const token = document.createElement('div');
-                token.style.position = 'absolute';
-                token.style.width = '32px';
-                token.style.height = '32px';
-                token.style.left = (x + 16) + 'px';
-                token.style.top = (y + 16) + 'px';
-                token.style.backgroundImage = 'url(assets/images/energy-token.png)';
-                token.style.backgroundSize = 'contain';
-                token.style.zIndex = '100';
-                document.getElementById('game-container').appendChild(token);
-                
-                // Animation
-                let y = parseInt(token.style.top);
-                let alpha = 1.0;
-                const animInterval = setInterval(() => {
-                    y -= 2;
-                    alpha -= 0.05;
-                    token.style.top = y + 'px';
-                    token.style.opacity = alpha;
-                    
-                    if (alpha <= 0) {
-                        clearInterval(animInterval);
-                        token.remove();
-                    }
-                }, 50);
-                
-                alert('Energie von ' + name + ' gesammelt!');
+            // Statustext erstellen
+            const statusText = document.createElement('div');
+            statusText.className = 'status-text';
+            statusText.style.top = (parseInt(source.style.top) + 70) + 'px';
+            statusText.style.left = (parseInt(source.style.left)) + 'px';
+            statusText.textContent = 'Betriebsbereit';
+            document.getElementById('game-container').appendChild(statusText);
+            
+            // Energiequellen-Objekt erstellen
+            const sourceObj = {
+                element: source,
+                statusText: statusText,
+                type: type,
+                name: name,
+                x: x,
+                y: y,
+                broken: false,
+                repairing: false
             };
             
+            // Klick-Handler
+            source.onclick = function() {
+                if (sourceObj.broken) {
+                    if (!sourceObj.repairing) {
+                        repairSource(sourceObj);
+                    }
+                } else {
+                    collectEnergy(sourceObj);
+                }
+            };
+            
+            // Zur Liste hinzufügen
+            energySources.push(sourceObj);
+            
             document.getElementById('game-container').appendChild(source);
+            
+            // Zufällige Ausfälle starten
+            startRandomFailures(sourceObj);
+            
+            return sourceObj;
+        }
+        
+        function createGrid() {
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'grid-container';
+            
+            // Grid-Füllstandsanzeige
+            const gridFill = document.createElement('div');
+            gridFill.className = 'grid-fill';
+            gridContainer.appendChild(gridFill);
+            
+            // Grid-Text
+            const gridText = document.createElement('div');
+            gridText.className = 'grid-text';
+            gridText.innerHTML = `Netz: ${gridCapacity}/${gridMaxCapacity} Einheiten`;
+            gridContainer.appendChild(gridText);
+            
+            // Verbrauchstext
+            const consumptionText = document.createElement('div');
+            consumptionText.className = 'grid-text';
+            
+            // Grid Manager Bonus anwenden
+            let consumptionRate = gridConsumptionRate;
+            if (selectedRole === 'Grid Manager') {
+                consumptionRate /= roleBonus.gridEfficiencyMultiplier;
+            }
+            
+            consumptionText.innerHTML = `Verbrauch: ${consumptionRate.toFixed(1)}/s`;
+            gridContainer.appendChild(consumptionText);
+            
+            document.getElementById('game-container').appendChild(gridContainer);
+            
+            // Grid-Objekt zurückgeben
+            return {
+                container: gridContainer,
+                fill: gridFill,
+                text: gridText,
+                consumptionText: consumptionText
+            };
+        }
+        
+        function updateGrid() {
+            const gridFill = document.querySelector('.grid-fill');
+            const gridText = document.querySelector('.grid-text');
+            
+            if (!gridFill || !gridText) return;
+            
+            // Füllstand aktualisieren
+            const fillPercent = (gridCapacity / gridMaxCapacity) * 100;
+            gridFill.style.width = fillPercent + '%';
+            
+            // Farbe basierend auf Füllstand ändern
+            if (fillPercent >= 80) {
+                gridFill.style.backgroundColor = '#ff0000'; // Rot bei hohem Füllstand
+            } else if (fillPercent >= 60) {
+                gridFill.style.backgroundColor = '#ffff00'; // Gelb bei mittlerem Füllstand
+            } else {
+                gridFill.style.backgroundColor = '#00ff00'; // Grün bei niedrigem Füllstand
+            }
+            
+            // Text aktualisieren
+            gridText.innerHTML = `Netz: ${Math.round(gridCapacity)}/${gridMaxCapacity} Einheiten`;
+        }
+        
+        function startConsumptionTimer() {
+            // Alle Sekunde Energie verbrauchen
+            setInterval(() => {
+                // Verbrauchsrate basierend auf Rolle
+                let consumptionRate = gridConsumptionRate;
+                if (selectedRole === 'Grid Manager') {
+                    consumptionRate /= roleBonus.gridEfficiencyMultiplier;
+                }
+                
+                function startRandomEvents() {
+                    // Bestehenden Timer löschen
+                    if (eventTimer) {
+                        clearTimeout(eventTimer);
+                    }
+                    
+                    // Zufallsereignisse alle 30-60 Sekunden
+                    const delay = 30000 + Math.random() * 30000;
+                    
+                    // Strategist erhält frühere Warnungen
+                    let warningTime = 5000; // 5 Sekunden Standardzeit
+                    if (selectedRole === 'Strategist') {
+                        warningTime *= roleBonus.warningTimeMultiplier; // 50% mehr Vorwarnzeit
+                    }
+                    
+                    eventTimer = setTimeout(() => {
+                        triggerRandomEvent(warningTime);
+                        startRandomEvents(); // Nächstes Ereignis planen
+                    }, delay);
+                }
+                
+                function triggerRandomEvent(warningTime) {
+                    const events = [
+                        {
+                            name: 'Sturm',
+                            description: 'Ein Sturm zieht auf! Solar- und Windenergie werden beeinträchtigt.',
+                            effect: () => {
+                                // Alle Solar- und Windanlagen temporär beeinträchtigen
+                                energySources.forEach(source => {
+                                    if (source.type === 'solar' || source.type === 'wind') {
+                                        source.element.style.filter = 'brightness(50%)';
+                                        source.statusText.textContent = 'Beeinträchtigt';
+                                        source.statusText.style.backgroundColor = 'rgba(255, 165, 0, 0.7)';
+                                        
+                                        // Nach 10 Sekunden wieder normal
+                                        setTimeout(() => {
+                                            if (!source.broken) {
+                                                source.element.style.filter = '';
+                                                source.statusText.textContent = 'Betriebsbereit';
+                                                source.statusText.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                                            }
+                                        }, 10000);
+                                    }
+                                });
+                            }
+                        },
+                        {
+                            name: 'Verbrauchsspitze',
+                            description: 'Verbrauchsspitze! Der Energiebedarf steigt vorübergehend.',
+                            effect: () => {
+                                // Verbrauch für 15 Sekunden verdoppeln
+                                const oldRate = gridConsumptionRate;
+                                gridConsumptionRate *= 2;
+                                
+                                // Verbrauchstext aktualisieren
+                                const consumptionText = document.querySelector('.grid-container .grid-text:nth-child(3)');
+                                if (consumptionText) {
+                                    let displayRate = gridConsumptionRate;
+                                    if (selectedRole === 'Grid Manager') {
+                                        displayRate /= roleBonus.gridEfficiencyMultiplier;
+                                    }
+                                    consumptionText.innerHTML = `Verbrauch: ${displayRate.toFixed(1)}/s (Spitze!)`;
+                                    consumptionText.style.color = '#ff0000';
+                                }
+                                
+                                // Nach 15 Sekunden wieder normal
+                                setTimeout(() => {
+                                    gridConsumptionRate = oldRate;
+                                    if (consumptionText) {
+                                        let displayRate = gridConsumptionRate;
+                                        if (selectedRole === 'Grid Manager') {
+                                            displayRate /= roleBonus.gridEfficiencyMultiplier;
+                                        }
+                                        consumptionText.innerHTML = `Verbrauch: ${displayRate.toFixed(1)}/s`;
+                                        consumptionText.style.color = 'white';
+                                    }
+                                }, 15000);
+                            }
+                        },
+                        {
+                            name: 'Systemausfall',
+                            description: 'Systemausfall! Eine zufällige Energiequelle fällt aus.',
+                            effect: () => {
+                                // Zufällige Energiequelle auswählen
+                                const workingSources = energySources.filter(source => !source.broken);
+                                if (workingSources.length > 0) {
+                                    const randomSource = workingSources[Math.floor(Math.random() * workingSources.length)];
+                                    breakSource(randomSource);
+                                }
+                            }
+                        }
+                    ];
+                    
+                    // Zufälliges Ereignis auswählen
+                    const randomEvent = events[Math.floor(Math.random() * events.length)];
+                    
+                    // Warnung anzeigen
+                    let warningMessage = `WARNUNG: ${randomEvent.description}`;
+                    
+                    // Strategist erhält detailliertere Informationen
+                    if (selectedRole === 'Strategist') {
+                        warningMessage += ' (Strategist-Info: Bereite dich vor!)';
+                    }
+                    
+                    showWarning(warningMessage);
+                    
+                    // Nach Warnzeit Ereignis auslösen
+                    setTimeout(() => {
+                        showWarning(`EREIGNIS AKTIV: ${randomEvent.name}!`);
+                        randomEvent.effect();
+                    }, warningTime);
+                }
+                
+                // Energie verbrauchen
+                gridCapacity = Math.max(0, gridCapacity - consumptionRate);
+                
+                // Grid aktualisieren
+                updateGrid();
+                
+                // Wenn Grid leer, Warnung anzeigen
+                if (gridCapacity === 0) {
+                    showWarning('Energieausfall! Das Netz hat keine Energie mehr.');
+                }
+            }, 1000);
+        }
+        
+        function addEnergyToGrid(amount) {
+            // Grid Manager Bonus anwenden
+            if (selectedRole === 'Grid Manager') {
+                amount *= roleBonus.gridEfficiencyMultiplier;
+            }
+            
+            // Energie zum Grid hinzufügen
+            gridCapacity = Math.min(gridCapacity + amount, gridMaxCapacity);
+            
+            // Grid aktualisieren
+            updateGrid();
+            
+            // Wenn Grid voll, Warnung anzeigen
+            if (gridCapacity >= gridMaxCapacity) {
+                showWarning('Netzüberlastung! Reduziere die Energiezufuhr.');
+            }
+            
+            return amount;
+        }
+        
+        function collectEnergy(source) {
+            if (source.broken) return;
+            
+            // Energietoken-Animation beim Sammeln
+            const token = document.createElement('div');
+            token.style.position = 'absolute';
+            token.style.width = '32px';
+            token.style.height = '32px';
+            token.style.left = (source.x + 16) + 'px';
+            token.style.top = (source.y + 16) + 'px';
+            token.style.backgroundImage = 'url(assets/images/energy-token.png)';
+            token.style.backgroundSize = 'contain';
+            token.style.zIndex = '100';
+            document.getElementById('game-container').appendChild(token);
+            
+            // Animation
+            let posY = parseInt(token.style.top);
+            let alpha = 1.0;
+            const animInterval = setInterval(() => {
+                posY -= 2;
+                alpha -= 0.05;
+                token.style.top = posY + 'px';
+                token.style.opacity = alpha;
+                
+                if (alpha <= 0) {
+                    clearInterval(animInterval);
+                    token.remove();
+                }
+            }, 50);
+            
+            // Rollen-Bonus anwenden
+            let energyAmount = 10;
+            let message = 'Energie von ' + source.name + ' gesammelt!';
+            
+            if (selectedRole === 'Collector') {
+                energyAmount = Math.round(energyAmount * roleBonus.collectionMultiplier);
+                message = `Energie von ${source.name} gesammelt! (${energyAmount} Einheiten mit Collector-Bonus)`;
+            } else {
+                message = `Energie von ${source.name} gesammelt! (${energyAmount} Einheiten)`;
+            }
+            
+            // Energie zum Grid hinzufügen
+            const addedEnergy = addEnergyToGrid(energyAmount);
+            
+            // Nachricht anzeigen
+            message += ` (${addedEnergy} Einheiten zum Netz hinzugefügt)`;
+            alert(message);
+        }
+        
+        function startRandomFailures(source) {
+            // Alle 10-20 Sekunden prüfen, ob die Quelle ausfällt
+            setTimeout(() => {
+                if (!source.broken && Math.random() < 0.3) { // 30% Chance auf Ausfall
+                    breakSource(source);
+                }
+                startRandomFailures(source);
+            }, 10000 + Math.random() * 10000);
+        }
+        
+        function breakSource(source) {
+            source.broken = true;
+            source.element.classList.add('broken');
+            source.statusText.textContent = 'DEFEKT';
+            source.statusText.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
+            
+            showWarning(`${source.name} ist ausgefallen! Klicke darauf, um zu reparieren.`);
+        }
+        
+        function repairSource(source) {
+            source.repairing = true;
+            source.statusText.textContent = 'Reparatur...';
+            source.statusText.style.backgroundColor = 'rgba(255, 165, 0, 0.7)';
+            
+            // Reparaturzeit basierend auf Rolle
+            let repairTime = 3000; // 3 Sekunden Standardzeit
+            
+            if (selectedRole === 'Engineer') {
+                repairTime *= roleBonus.repairTimeMultiplier; // 30% schneller für Engineer
+                showWarning(`Repariere ${source.name} mit Engineer-Bonus (${Math.round(repairTime/1000)} Sekunden)`);
+            } else {
+                showWarning(`Repariere ${source.name} (${Math.round(repairTime/1000)} Sekunden)`);
+            }
+            
+            setTimeout(() => {
+                source.broken = false;
+                source.repairing = false;
+                source.element.classList.remove('broken');
+                source.statusText.textContent = 'Betriebsbereit';
+                source.statusText.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                
+                showWarning(`${source.name} wurde erfolgreich repariert!`);
+            }, repairTime);
+        }
+        
+        function showWarning(message) {
+            // Bestehende Warnung entfernen
+            clearTimeout(warningTimeout);
+            const existingWarning = document.querySelector('.warning-text');
+            if (existingWarning) {
+                existingWarning.remove();
+            }
+            
+            // Neue Warnung anzeigen
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'warning-text';
+            warningDiv.textContent = message;
+            document.getElementById('game-container').appendChild(warningDiv);
+            
+            // Strategist erhält längere Warnungen
+            let warningDuration = 3000; // 3 Sekunden Standard
+            if (selectedRole === 'Strategist') {
+                warningDuration *= roleBonus.warningTimeMultiplier;
+            }
+            
+            // Warnung nach einiger Zeit ausblenden
+            warningTimeout = setTimeout(() => {
+                warningDiv.remove();
+            }, warningDuration);
         }
     </script>
 </body>

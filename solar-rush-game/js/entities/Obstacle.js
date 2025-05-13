@@ -165,6 +165,12 @@ class Obstacle {
                 break;
         }
         
+        // Strategist-Rolle erhält detailliertere Informationen
+        if (this.scene.playerRole === 'Strategist') {
+            const duration = Math.round(this.getDuration() / 1000);
+            message += ` (Dauer: ca. ${duration} Sekunden)`;
+        }
+        
         this.scene.showWarning(message);
     }
     

@@ -4,6 +4,7 @@
 class UIScene extends Phaser.Scene {
     constructor() {
         super({ key: 'UIScene' });
+        this.playerRole = null;
     }
 
     create() {
@@ -15,6 +16,7 @@ class UIScene extends Phaser.Scene {
         gameScene.events.on('updateUI', this.updateUI, this);
         gameScene.events.on('showWarning', this.showWarning, this);
         gameScene.events.on('gameOver', this.showGameOver, this);
+        gameScene.events.on('setPlayerRole', this.setPlayerRole, this);
         
         // Timer starten
         this.startTimer();
@@ -33,6 +35,15 @@ class UIScene extends Phaser.Scene {
         
         // Zeit-Anzeige
         this.timeText = this.add.text(20, 50, 'Zeit: 5:00', {
+            fontFamily: 'Arial',
+            fontSize: 18,
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        });
+        
+        // Rollen-Anzeige
+        this.roleText = this.add.text(20, 80, 'Rolle: Keine', {
             fontFamily: 'Arial',
             fontSize: 18,
             color: '#ffffff',
@@ -172,5 +183,63 @@ class UIScene extends Phaser.Scene {
         this.scene.stop('UIScene');
         this.scene.stop('GameScene');
         this.scene.start('MenuScene');
+    }
+    
+    // Spielerrolle setzen
+    setPlayerRole(role) {
+        this.playerRole = role;
+        
+        // Rollentext aktualisieren
+        if (role) {
+            this.roleText.setText(`Rolle: ${role}`);
+            
+            // Rollenfarbe basierend auf der Rolle setzen
+            switch (role) {
+                case 'Collector':
+                    this.roleText.setColor('#ffcc00');
+                    break;
+                case 'Engineer':
+                    this.roleText.setColor('#00ccff');
+                    break;
+                case 'Strategist':
+                    this.roleText.setColor('#ff6600');
+                    break;
+                case 'Grid Manager':
+                    this.roleText.setColor('#00ff00');
+                    break;
+                default:
+                    this.roleText.setColor('#ffffff');
+            }
+            
+            // Rollen-Bonus-Hinweis anzeigen
+            let bonusText = '';
+            switch (role) {
+                case 'Collector':
+                    bonusText = 'Bonus: Sammelt 20% mehr Energie';
+                    break;
+                case 'Engineer':
+                    bonusText = 'Bonus: Repariert 30% schneller';
+                    break;
+                case 'Strategist':
+                    bonusText = 'Bonus: Erhält 50% frühere Warnungen';
+                    break;
+                case 'Grid Manager':
+                    bonusText = 'Bonus: 15% höhere Netzeffizienz';
+                    break;
+            }
+            
+            if (bonusText) {
+                this.add.text(20, 110, bonusText, {
+                    fontFamily: 'Arial',
+                    fontSize: 14,
+                    color: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 2
+                });
+            }
+        } else {
+            this.roleText.setText('Rolle: Keine');
+            this.roleText.setColor('#ffffff');
+        }
     }
 }

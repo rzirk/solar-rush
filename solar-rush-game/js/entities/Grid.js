@@ -77,6 +77,11 @@ class Grid {
     
     // Energie hinzufügen
     addEnergy(amount) {
+        // Grid Manager Bonus anwenden, wenn vorhanden
+        if (this.scene.playerRole === 'Grid Manager') {
+            amount *= this.scene.roleBonus.gridEfficiencyMultiplier;
+        }
+        
         this.currentCapacity = Math.min(this.currentCapacity + amount, this.maxCapacity);
         this.checkStatus();
         this.updateVisualGrid();
@@ -86,7 +91,14 @@ class Grid {
     // Energie verbrauchen (pro Tick)
     consumeEnergy() {
         // Energie basierend auf aktuellem Verbrauch reduzieren
-        this.currentCapacity = Math.max(0, this.currentCapacity - this.currentConsumption);
+        let consumption = this.currentConsumption;
+        
+        // Grid Manager Bonus anwenden, wenn vorhanden (reduzierter Verbrauch)
+        if (this.scene.playerRole === 'Grid Manager') {
+            consumption /= this.scene.roleBonus.gridEfficiencyMultiplier;
+        }
+        
+        this.currentCapacity = Math.max(0, this.currentCapacity - consumption);
         this.checkStatus();
         this.updateVisualGrid();
     }
