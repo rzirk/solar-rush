@@ -35,6 +35,14 @@ class Engineer {
                 this.moveTo(pointer.x, pointer.y);
             }
         });
+        
+        // Tastatur-Handler für Reparatur mit Leertaste
+        scene.input.keyboard.on('keydown-SPACE', () => {
+            // Prüfen, ob eine kaputte Energiequelle in der Nähe ist
+            if (!this.repairing) {
+                this.repairNearbySource();
+            }
+        });
     }
     
     // Zu einer Position bewegen
@@ -142,11 +150,43 @@ class Engineer {
                 // Visuellen Hinweis anzeigen, wenn eine kaputte Quelle in der Nähe ist
                 if (distance <= this.repairRange * 2) {
                     // Hier könnte ein visueller Hinweis angezeigt werden
-                    this.updateStatusText('Repair needed nearby!');
+                    this.updateStatusText('Repair needed nearby! Press SPACE');
                     break;
                 }
             }
         }
+    }
+    
+    // Repariere die nächste kaputte Energiequelle in der Nähe (mit Leertaste)
+    repairNearbySource() {
+        const energySources = this.scene.energySources;
+        let closestSource = null;
+        let closestDistance = this.repairRange;
+        
+        // Finde die nächste kaputte Energiequelle
+        for (let i = 0; i < energySources.length; i++) {
+            const source = energySources[i];
+            
+            if (source.broken && !source.repairing) {
+                const distance = Phaser.Math.Distance.Between(
+                    this.sprite.x, this.sprite.y,
+                    source.sprite.x, source.sprite.y
+                );
+                
+                if (distance <= this.repairRange && distance < closestDistance) {
+                    closestSource = source;
+                    closestDistance = distance;
+                }
+            }
+        }
+        
+        // Wenn eine kaputte Quelle in Reichweite ist, reparieren
+        if (closestSource) {
+            this.startRepair(closestSource);
+            return true;
+        }
+        
+        return false;
     }
     
     // Aufräumen beim Zerstören

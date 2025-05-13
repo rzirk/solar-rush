@@ -20,20 +20,20 @@ const config = {
         // Energiequellen-Einstellungen
         energySources: {
             solar: {
-                baseOutput: 5,
+                baseOutput: 15,
                 stormEffect: 0.2, // 20% Effizienz während eines Sturms
                 repairTime: 2000, // Zeit in ms zum Reparieren
                 maxCapacity: 50
             },
             wind: {
-                baseOutput: 3,
+                baseOutput: 9,
                 calmEffect: 0.1, // 10% Effizienz bei Windstille
                 stormEffect: 0.5, // 50% Effizienz während eines Sturms
                 repairTime: 3000,
                 maxCapacity: 40
             },
             hydro: {
-                baseOutput: 4,
+                baseOutput: 12,
                 droughtEffect: 0.3, // 30% Effizienz bei Trockenheit
                 floodEffect: 0.7, // 70% Effizienz bei Überschwemmung
                 repairTime: 4000,

@@ -322,7 +322,7 @@ class GameScene extends Phaser.Scene {
                 delay: 8000
             },
             {
-                message: 'Wenn eine Anlage defekt ist, klicke darauf, um sie zu reparieren.',
+                message: 'Wenn eine Anlage defekt ist, bewege den Engineer in die Nähe und drücke die Leertaste, um sie zu reparieren.',
                 delay: 5000
             },
             {
