@@ -101,7 +101,8 @@ class EnergySource {
     // Auf Klick reagieren
     onClick() {
         if (this.broken && !this.repairing) {
-            this.startRepair();
+            // Wenn kaputt, versuchen den Engineer zu rufen
+            this.scene.callEngineerToRepair(this);
         } else {
             const collected = this.collectEnergy();
             if (collected > 0) {
@@ -110,24 +111,26 @@ class EnergySource {
         }
     }
     
-    // Reparatur starten
+    // Reparatur starten (wird vom Engineer aufgerufen)
     startRepair() {
         if (!this.broken || this.repairing) return;
         
         this.repairing = true;
         this.statusText.setText('Reparatur...');
+    }
+    
+    // Reparatur abschließen (wird vom Engineer aufgerufen)
+    completeRepair() {
+        if (!this.repairing) return;
         
-        // Reparatur-Timer
-        this.scene.time.delayedCall(this.config.repairTime, () => {
-            this.broken = false;
-            this.repairing = false;
-            this.efficiency = 1.0;
-            this.scene.sound.play('repair', { volume: 0.7 });
-            this.updateStatusText();
-            
-            // Visuellen Effekt für die Reparatur anzeigen
-            this.showRepairEffect();
-        });
+        this.broken = false;
+        this.repairing = false;
+        this.efficiency = 1.0;
+        this.scene.sound.play('repair', { volume: 0.7 });
+        this.updateStatusText();
+        
+        // Visuellen Effekt für die Reparatur anzeigen
+        this.showRepairEffect();
     }
     
     // Prüfen auf zufälligen Ausfall

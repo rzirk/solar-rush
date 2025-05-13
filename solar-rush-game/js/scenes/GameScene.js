@@ -22,6 +22,7 @@ class GameScene extends Phaser.Scene {
         this.energySources = [];
         this.energyTokens = [];
         this.grid = null;
+        this.engineer = null;
     }
 
     create() {
@@ -59,6 +60,14 @@ class GameScene extends Phaser.Scene {
             loop: true
         });
         
+        // Timer für automatische Erzeugung neuer Produzenten
+        this.producerTimer = this.time.addEvent({
+            delay: 60000, // Jede Minute
+            callback: this.addNewProducer,
+            callbackScope: this,
+            loop: true
+        });
+        
         // Tutorial starten, falls im Tutorial-Modus
         if (this.gameMode === 'tutorial') {
             this.startTutorial();
@@ -69,6 +78,9 @@ class GameScene extends Phaser.Scene {
             volume: 0.3,
             loop: true
         });
+        
+        // Engineer erstellen
+        this.createEngineer();
     }
 
     update(time, delta) {
@@ -87,6 +99,11 @@ class GameScene extends Phaser.Scene {
         // Prüfen, ob Ziel erreicht wurde
         if (this.energyCollected >= this.energyTarget && !this.gameWon) {
             this.winGame();
+        }
+        
+        // Engineer aktualisieren
+        if (this.engineer) {
+            this.engineer.update();
         }
     }
     
@@ -122,6 +139,52 @@ class GameScene extends Phaser.Scene {
             windTurbine1, windTurbine2,
             hydroDam1, hydroDam2
         ];
+    }
+    
+    // Engineer erstellen
+    createEngineer() {
+        this.engineer = new Engineer(this, 400, 300);
+    }
+    
+    // Engineer zu einer kaputten Energiequelle rufen
+    callEngineerToRepair(energySource) {
+        if (!this.engineer || !energySource) return;
+        
+        // Engineer zur Energiequelle bewegen
+        this.engineer.moveTo(energySource.sprite.x, energySource.sprite.y);
+        
+        // Nachricht anzeigen
+        this.showWarning('Engineer wird zur Reparatur gerufen!');
+        
+        // Verzögerung, um dem Engineer Zeit zum Ankommen zu geben
+        this.time.delayedCall(1000, () => {
+            // Prüfen, ob der Engineer die Reparatur starten kann
+            const success = this.engineer.startRepair(energySource);
+            
+            if (!success) {
+                this.showWarning('Engineer ist noch unterwegs zur Reparatur!');
+            }
+        });
+    }
+    
+    // Neuen Produzenten hinzufügen
+    addNewProducer() {
+        if (this.gameOver) return;
+        
+        // Zufälligen Typ auswählen
+        const types = ['solar', 'wind', 'hydro'];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        
+        // Zufällige Position im Spielbereich
+        const x = Phaser.Math.Between(100, 700);
+        const y = Phaser.Math.Between(100, 500);
+        
+        // Neuen Produzenten erstellen
+        const newSource = new EnergySource(this, x, y, randomType, this.gameConfig.energySources[randomType]);
+        this.energySources.push(newSource);
+        
+        // Nachricht anzeigen
+        this.showWarning(`Neuer ${randomType}-Produzent wurde hinzugefügt!`);
     }
     
     // UI aktualisieren
@@ -226,6 +289,7 @@ class GameScene extends Phaser.Scene {
         // Timer stoppen
         if (this.obstacleTimer) this.obstacleTimer.remove();
         if (this.tokenTimer) this.tokenTimer.remove();
+        if (this.producerTimer) this.producerTimer.remove();
         
         // Nachricht an UI-Szene senden
         this.events.emit('gameOver', { message, success });

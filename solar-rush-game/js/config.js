@@ -54,7 +54,7 @@ const config = {
         obstacles: {
             stormDuration: 10000, // Sturmdauer in ms
             stormWarningTime: 5000, // Vorwarnzeit vor Sturm
-            failureProbability: 0.01, // 1% Chance auf Ausfall pro Sekunde
+            failureProbability: 0.02, // 2% Chance auf Ausfall pro Sekunde
             demandSpikeProbability: 0.005, // 0.5% Chance auf Verbrauchsspitze pro Sekunde
             demandSpikeDuration: 8000 // Dauer einer Verbrauchsspitze in ms
         },
