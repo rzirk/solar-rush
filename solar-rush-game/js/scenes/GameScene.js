@@ -145,9 +145,11 @@ class GameScene extends Phaser.Scene {
     
     // Energie von Token sammeln
     collectEnergyToken(amount) {
-        // Energie direkt zum Spieler hinzufügen (nicht zum Grid)
-        this.energyCollected += amount;
-        this.updateUI();
+        // Energie zum Grid hinzufügen UND zum Spieler-Score
+        if (this.grid.addEnergy(amount)) {
+            this.energyCollected += amount;
+            this.updateUI();
+        }
     }
     
     // Zufälliges Energietoken erzeugen
@@ -217,6 +219,8 @@ class GameScene extends Phaser.Scene {
     
     // Spiel beenden
     endGame(message, success = false) {
+        if (this.gameOver) return; // Verhindert mehrfaches Aufrufen
+        
         this.gameOver = true;
         
         // Timer stoppen

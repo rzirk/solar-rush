@@ -19,6 +19,35 @@ class Grid {
         this.blackout = false;
         this.demandSpikeActive = false;
         
+        // Gebäude und deren Verbrauch gemäß Spezifikation
+        this.buildings = [
+            {
+                name: 'Krankenhaus',
+                consumption: 5,
+                interval: 10000, // 10 Sekunden
+                lastConsumption: 0,
+                failurePoints: 2
+            },
+            {
+                name: 'E-Auto-Ladestation',
+                consumption: 3,
+                interval: 10000, // 10 Sekunden
+                lastConsumption: 0,
+                failurePoints: 1
+            },
+            {
+                name: 'Fabrik',
+                consumption: 10,
+                interval: 15000, // 15 Sekunden
+                lastConsumption: 0,
+                failurePoints: 1
+            }
+        ];
+        
+        // Zähler für Gebäudeausfälle
+        this.buildingFailures = 0;
+        this.maxFailures = 5; // 5 Ausfälle = Game Over
+        
         // Visuelles Grid erstellen
         this.createVisualGrid();
         
@@ -85,10 +114,51 @@ class Grid {
     
     // Energie verbrauchen (pro Tick)
     consumeEnergy() {
-        // Energie basierend auf aktuellem Verbrauch reduzieren
+        // Basisverbrauch
         this.currentCapacity = Math.max(0, this.currentCapacity - this.currentConsumption);
+        
+        // Gebäudespezifischer Verbrauch
+        const currentTime = this.scene.time.now;
+        let totalBuildingConsumption = 0;
+        let buildingStatus = [];
+        
+        this.buildings.forEach(building => {
+            // Prüfen, ob es Zeit für den Verbrauch ist
+            if (currentTime - building.lastConsumption >= building.interval) {
+                // Verbrauch berechnen
+                const consumption = this.demandSpikeActive ?
+                    building.consumption * this.config.demandSpikeMultiplier :
+                    building.consumption;
+                
+                // Prüfen, ob genug Energie vorhanden ist
+                if (this.currentCapacity >= consumption) {
+                    // Energie verbrauchen
+                    this.currentCapacity -= consumption;
+                    building.lastConsumption = currentTime;
+                    buildingStatus.push(`${building.name}: OK`);
+                } else {
+                    // Nicht genug Energie - Gebäudeausfall
+                    this.buildingFailures++;
+                    buildingStatus.push(`${building.name}: AUSFALL!`);
+                    
+                    // Warnung anzeigen
+                    this.scene.showWarning(`${building.name} hat einen Stromausfall!`);
+                    
+                    // Prüfen, ob maximale Ausfälle erreicht wurden
+                    if (this.buildingFailures >= this.maxFailures) {
+                        this.scene.gameOver('Zu viele Gebäudeausfälle! Die Stadt ist im Blackout.');
+                    }
+                    
+                    building.lastConsumption = currentTime;
+                }
+                
+                totalBuildingConsumption += consumption;
+            }
+        });
+        
+        // Status aktualisieren
         this.checkStatus();
-        this.updateVisualGrid();
+        this.updateVisualGrid(buildingStatus);
     }
     
     // Status prüfen (Überlastung, Blackout)
@@ -113,7 +183,7 @@ class Grid {
     }
     
     // Visuelles Grid aktualisieren
-    updateVisualGrid() {
+    updateVisualGrid(buildingStatus = []) {
         // Füllstand aktualisieren
         const fillWidth = (this.currentCapacity / this.maxCapacity) * this.background.width;
         this.fill.width = fillWidth;
@@ -131,12 +201,22 @@ class Grid {
         this.statusText.setText(`Netz: ${Math.round(this.currentCapacity)}/${this.maxCapacity} Einheiten`);
         
         // Verbrauchstext aktualisieren
-        const consumptionText = this.demandSpikeActive ? 
-            `Verbrauch: ${this.currentConsumption.toFixed(1)}/s (Spitze!)` : 
+        let consumptionText = this.demandSpikeActive ?
+            `Verbrauch: ${this.currentConsumption.toFixed(1)}/s (Spitze!)` :
             `Verbrauch: ${this.currentConsumption.toFixed(1)}/s`;
+            
+        // Gebäudestatus hinzufügen, wenn vorhanden
+        if (buildingStatus.length > 0) {
+            // Nur den letzten Status anzeigen, um Überladung zu vermeiden
+            consumptionText += `\n${buildingStatus[buildingStatus.length - 1]}`;
+        }
+        
+        // Ausfallzähler hinzufügen
+        consumptionText += `\nAusfälle: ${this.buildingFailures}/${this.maxFailures}`;
+        
         this.consumptionText.setText(consumptionText);
         
-        if (this.demandSpikeActive) {
+        if (this.demandSpikeActive || this.buildingFailures > 0) {
             this.consumptionText.setColor('#ff0000');
         } else {
             this.consumptionText.setColor('#ffffff');
