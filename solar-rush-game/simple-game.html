@@ -197,7 +197,7 @@
             backgroundMusic.play().catch(e => console.log('Autoplay wurde vom Browser blockiert:', e));
             
             // Spielvariablen
-            let gridEnergy = 0;
+            let gridEnergy = 20; // Starte mit etwas Energie im Grid, damit nicht sofort Ausfälle passieren
             const maxGridEnergy = 100;
             const targetEnergy = 100; // Ziel: 100 Energie-Tokens
             let timeRemaining = 300; // 5 Minuten (in Sekunden)
@@ -392,11 +392,11 @@
                 }
             }
             
-            // Verbraucher erstellen
+            // Verbraucher erstellen gemäß Spezifikation
             const consumers = [
-                { name: 'Krankenhaus', rate: 5, interval: 10, penalty: -2 },
-                { name: 'E-Auto-Ladestation', rate: 3, interval: 10, penalty: -10 },
-                { name: 'Fabrik', rate: 10, interval: 15, penalty: -30 }
+                { name: 'Krankenhaus', rate: 5, interval: 10, penalty: -2 },      // 5 Tokens / 10 Sek
+                { name: 'E-Auto-Ladestation', rate: 3, interval: 10, penalty: -10 }, // 3 Tokens / 10 Sek
+                { name: 'Fabrik', rate: 10, interval: 15, penalty: -30 }          // 10 Tokens / 15 Sek
             ];
             
             const consumersContainer = document.createElement('div');
@@ -434,13 +434,15 @@
                 setInterval(() => {
                     if (gameOver) return;
                     
+                    // Prüfen, ob genug Energie vorhanden ist
                     if (gridEnergy >= consumer.rate) {
+                        // Energie verbrauchen
                         gridEnergy -= consumer.rate;
                         updateGrid();
                         consumerStatus.textContent = 'Status: Aktiv';
                         consumerStatus.style.color = '#00ff00';
                     } else {
-                        // Ausfall
+                        // Ausfall - nicht genug Energie
                         consumerStatus.textContent = 'Status: Ausfall!';
                         consumerStatus.style.color = '#ff0000';
                         
@@ -448,17 +450,17 @@
                         warningSound.currentTime = 0;
                         warningSound.play();
                         
-                        // Strafe anwenden
-                        if (consumer.penalty < 0) {
-                            failureCount++;
-                            failureDisplay.textContent = `Ausfälle: ${failureCount}/${maxFailures}`;
-                            
-                            if (failureCount >= maxFailures) {
-                                endGame(false, 'Zu viele Ausfälle! Die Stadt hat keinen Strom mehr.');
-                            }
+                        // Strafe anwenden und Ausfallzähler erhöhen
+                        failureCount++;
+                        failureDisplay.textContent = `Ausfälle: ${failureCount}/${maxFailures}`;
+                        
+                        // Prüfen, ob maximale Ausfälle erreicht wurden
+                        if (failureCount >= maxFailures) {
+                            endGame(false, 'Zu viele Ausfälle! Die Stadt hat keinen Strom mehr.');
                         }
                         
-                        showWarning(`${consumer.name} hat keinen Strom!`);
+                        // Warnmeldung anzeigen
+                        showWarning(`${consumer.name} hat einen Stromausfall!`);
                     }
                 }, consumer.interval * 1000);
             });
@@ -578,6 +580,7 @@
                     y: parseInt(token.style.top),
                     width: 30,
                     height: 30
+
                 };
                 
                 // Token zum Spielbereich hinzufügen
@@ -1134,7 +1137,7 @@
                     showWarning('Nur der Collector kann Energie sammeln!');
                 }
             }
-            
+  
             // Funktion zum Beschädigen der Energiequelle
             function breakSource() {
                 if (!broken) {
@@ -1142,6 +1145,7 @@
                     source.classList.add('broken');
                     source.style.filter = 'grayscale(100%) brightness(50%)';
                     tokenAvailable = false;
+
                     if (typeof tokenIndicator !== 'undefined') {
                         tokenIndicator.style.display = 'none';
                     }
