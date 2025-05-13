@@ -900,7 +900,7 @@
                     source.classList.add('broken');
                     source.style.filter = 'grayscale(100%) brightness(50%)';
                     tokenAvailable = false;
-                    tokenIndicator.style.display = 'none';
+                    // Remove reference to undefined tokenIndicator
                     
                     // Warnsound abspielen
                     warningSound.currentTime = 0;
