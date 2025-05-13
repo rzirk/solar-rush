@@ -22,6 +22,17 @@
             background-color: #0c4a6e;
             position: relative;
             overflow: hidden;
+            transition: all 0.3s;
+        }
+        
+        /* Fullscreen styles */
+        #game-container.fullscreen {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 9999;
         }
         
         .title {
@@ -60,6 +71,24 @@
         }
         
         .button:hover {
+            background-color: #0ea5e9;
+        }
+        
+        .fullscreen-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #0284c7;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .fullscreen-indicator:hover {
             background-color: #0ea5e9;
         }
         
@@ -102,10 +131,51 @@
         
         <div class="button" onclick="startGame()">Einzelspieler</div>
         <div class="button" onclick="startTutorial()">Tutorial</div>
+        <div class="button" onclick="toggleFullscreen()">📺 Vollbild</div>
         <div class="button" onclick="if(confirm('Möchten Sie das Spiel wirklich beenden?')) window.close()">Beenden</div>
+        <div class="fullscreen-indicator">Drücke F11 für Vollbild</div>
     </div>
     
     <script>
+        // Fullscreen functionality
+        function toggleFullscreen() {
+            const gameContainer = document.getElementById('game-container');
+            
+            if (!document.fullscreenElement) {
+                // Enter fullscreen
+                if (gameContainer.requestFullscreen) {
+                    gameContainer.requestFullscreen();
+                } else if (gameContainer.mozRequestFullScreen) { // Firefox
+                    gameContainer.mozRequestFullScreen();
+                } else if (gameContainer.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                    gameContainer.webkitRequestFullscreen();
+                } else if (gameContainer.msRequestFullscreen) { // IE/Edge
+                    gameContainer.msRequestFullscreen();
+                }
+                gameContainer.classList.add('fullscreen');
+            } else {
+                // Exit fullscreen
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) { // Firefox
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) { // Chrome, Safari and Opera
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { // IE/Edge
+                    document.msExitFullscreen();
+                }
+                gameContainer.classList.remove('fullscreen');
+            }
+        }
+        
+        // Listen for keyboard events
+        document.addEventListener('keydown', function(event) {
+            // F11 key or Escape key
+            if (event.key === 'F11' || (document.fullscreenElement && event.key === 'Escape')) {
+                event.preventDefault();
+                toggleFullscreen();
+            }
+        });
         function startGame() {
             const gameContainer = document.getElementById('game-container');
             gameContainer.innerHTML = '';
@@ -129,6 +199,13 @@
             infoDiv.style.padding = '10px';
             infoDiv.innerHTML = 'Energie: 0/100<br>Zeit: 5:00';
             gameContainer.appendChild(infoDiv);
+            
+            // Fullscreen indicator for in-game
+            const fullscreenIndicator = document.createElement('div');
+            fullscreenIndicator.className = 'fullscreen-indicator';
+            fullscreenIndicator.textContent = 'Drücke F11 für Vollbild';
+            fullscreenIndicator.onclick = toggleFullscreen;
+            gameContainer.appendChild(fullscreenIndicator);
             
             // Zurück-Button
             const backButton = document.createElement('div');

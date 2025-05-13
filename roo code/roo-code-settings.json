@@ -5,7 +5,7 @@
       "Gemini 2.5 - OpenRouter": {
         "apiProvider": "openrouter",
         "apiModelId": "google/gemini-2.5-pro-preview",
-        "openRouterApiKey": "",
+        "openRouterApiKey": "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",
         "openRouterModelId": "google/gemini-2.5-pro-preview",
         "id": "4eaqlhs48fe"
       },
