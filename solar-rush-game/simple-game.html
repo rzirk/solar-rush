@@ -129,7 +129,8 @@
             Erreiche das Energieziel, bevor die Zeit abläuft!
         </div>
         
-        <div class="button" onclick="startGame()">Einzelspieler</div>
+        <div class="button" onclick="startGame('single')">Einzelspieler</div>
+        <div class="button" onclick="startGame('multi')">Mehrspieler (Koop)</div>
         <div class="button" onclick="startTutorial()">Tutorial</div>
         <div class="button" onclick="toggleFullscreen()">📺 Vollbild</div>
         <div class="button" onclick="if(confirm('Möchten Sie das Spiel wirklich beenden?')) window.close()">Beenden</div>
@@ -176,7 +177,7 @@
                 toggleFullscreen();
             }
         });
-        function startGame() {
+        function startGame(mode = 'single') {
             const gameContainer = document.getElementById('game-container');
             gameContainer.innerHTML = '';
             
@@ -204,7 +205,94 @@
             const maxFailures = 5;
             let gameOver = false;
             let energyTokens = []; // Array für Energietokens
-            let playerEnergy = 0; // Gesammelte Energie des Spielers
+            
+            // Spieler-Variablen
+            const gameMode = mode;
+            let players = [];
+            
+            // Spieler erstellen
+            if (gameMode === 'single') {
+                // Einzelspieler-Modus: Nur ein Spieler mit beiden Rollen
+                players.push({
+                    id: 1,
+                    role: 'engineer-collector', // Kombinierte Rolle
+                    color: '#FF0000',
+                    x: 400,
+                    y: 300,
+                    speed: 5,
+                    energy: 0,
+                    controls: {
+                        up: 'ArrowUp',
+                        down: 'ArrowDown',
+                        left: 'ArrowLeft',
+                        right: 'ArrowRight',
+                        collect: ' ' // Leertaste
+                    },
+                    element: createPlayerElement(1, '#FF0000')
+                });
+            } else {
+                // Mehrspieler-Modus: Zwei Spieler mit unterschiedlichen Rollen
+                // Spieler 1: Engineer (Rot)
+                players.push({
+                    id: 1,
+                    role: 'engineer',
+                    color: '#FF0000',
+                    x: 350,
+                    y: 300,
+                    speed: 5,
+                    energy: 0,
+                    controls: {
+                        up: 'w',
+                        down: 's',
+                        left: 'a',
+                        right: 'd',
+                        collect: ' ' // Leertaste
+                    },
+                    element: createPlayerElement(1, '#FF0000')
+                });
+                
+                // Spieler 2: Collector (Blau)
+                players.push({
+                    id: 2,
+                    role: 'collector',
+                    color: '#0000FF',
+                    x: 450,
+                    y: 300,
+                    speed: 5,
+                    energy: 0,
+                    controls: {
+                        up: 'ArrowUp',
+                        down: 'ArrowDown',
+                        left: 'ArrowLeft',
+                        right: 'ArrowRight',
+                        collect: 'Enter'
+                    },
+                    element: createPlayerElement(2, '#0000FF')
+                });
+            }
+            
+            // Gesamtenergie aller Spieler
+            let totalPlayerEnergy = 0;
+            
+            // Funktion zum Erstellen eines Spieler-Elements
+            function createPlayerElement(id, color) {
+                const player = document.createElement('div');
+                player.className = 'player player-' + id;
+                player.style.position = 'absolute';
+                player.style.width = '30px';
+                player.style.height = '30px';
+                player.style.zIndex = '200';
+                
+                // Pfeil-Form mit CSS erstellen
+                player.innerHTML = `
+                    <svg width="30" height="30" viewBox="0 0 30 30">
+                        <polygon points="15,0 30,30 15,20 0,30" fill="${color}" />
+                    </svg>
+                `;
+                
+                gameContainer.appendChild(player);
+                return player;
+            }
             
             // Grid erstellen
             const grid = document.createElement('div');
@@ -278,12 +366,30 @@
             playerEnergyDisplay.style.padding = '10px';
             playerEnergyDisplay.style.borderRadius = '5px';
             playerEnergyDisplay.style.color = 'white';
-            playerEnergyDisplay.textContent = `Gesammelte Energie: ${playerEnergy}`;
+            
+            if (gameMode === 'single') {
+                playerEnergyDisplay.innerHTML = `<div>Gesammelte Energie: ${players[0].energy}</div>`;
+            } else {
+                playerEnergyDisplay.innerHTML = `
+                    <div style="color: ${players[0].color}">Spieler 1 (Engineer): ${players[0].energy}</div>
+                    <div style="color: ${players[1].color}">Spieler 2 (Collector): ${players[1].energy}</div>
+                    <div style="margin-top: 5px;">Gesamt: ${totalPlayerEnergy}</div>
+                `;
+            }
+            
             gameContainer.appendChild(playerEnergyDisplay);
             
             // Funktion zum Aktualisieren der Spieler-Energieanzeige
             function updatePlayerEnergyDisplay() {
-                playerEnergyDisplay.textContent = `Gesammelte Energie: ${playerEnergy}`;
+                if (gameMode === 'single') {
+                    playerEnergyDisplay.innerHTML = `<div>Gesammelte Energie: ${players[0].energy}</div>`;
+                } else {
+                    playerEnergyDisplay.innerHTML = `
+                        <div style="color: ${players[0].color}">Spieler 1 (Engineer): ${players[0].energy}</div>
+                        <div style="color: ${players[1].color}">Spieler 2 (Collector): ${players[1].energy}</div>
+                        <div style="margin-top: 5px;">Gesamt: ${totalPlayerEnergy}</div>
+                    `;
+                }
             }
             
             // Verbraucher erstellen
@@ -394,7 +500,7 @@
                 updateGrid();
                 
                 // Prüfen, ob das Ziel erreicht wurde
-                if (gridEnergy >= targetEnergy) {
+                if (totalPlayerEnergy >= targetEnergy) {
                     endGame(true, 'Gewonnen! Die Stadt ist mit erneuerbarer Energie versorgt.');
                 }
             }
@@ -466,33 +572,12 @@
                     token.style.transform = `scale(${scale})`;
                 }, 500);
                 
-                // Klick-Event zum Sammeln
-                token.onclick = function() {
-                    // Token entfernen
-                    gameContainer.removeChild(token);
-                    clearInterval(pulseInterval);
-                    
-                    // Aus Array entfernen
-                    const index = energyTokens.indexOf(token);
-                    if (index > -1) {
-                        energyTokens.splice(index, 1);
-                    }
-                    
-                    // Sound abspielen
-                    collectSound.currentTime = 0;
-                    collectSound.play();
-                    
-                    // Energie zum Spieler hinzufügen
-                    playerEnergy += 10;
-                    updatePlayerEnergyDisplay();
-                    
-                    // Prüfen, ob das Ziel erreicht wurde
-                    if (playerEnergy >= targetEnergy) {
-                        endGame(true, 'Gewonnen! Du hast genug Energie gesammelt!');
-                    }
-                    
-                    // Visuellen Effekt anzeigen
-                    showCollectEffect(x, y);
+                // Kollisionserkennung für Spieler und Token
+                const tokenRect = {
+                    x: parseInt(token.style.left),
+                    y: parseInt(token.style.top),
+                    width: 30,
+                    height: 30
                 };
                 
                 // Token zum Spielbereich hinzufügen
@@ -683,10 +768,168 @@
                 location.reload();
             };
             gameContainer.appendChild(backButton);
+            // Tastatursteuerung für Spieler
+            const keysPressed = {};
+            
+            document.addEventListener('keydown', function(event) {
+                keysPressed[event.key] = true;
+                
+                // Sammeln mit Taste
+                players.forEach(player => {
+                    if (event.key === player.controls.collect) {
+                        collectNearbyTokens(player);
+                    }
+                });
+            });
+            
+            document.addEventListener('keyup', function(event) {
+                keysPressed[event.key] = false;
+            });
+            
+            // Spieler-Bewegung und Kollisionserkennung
+            function updatePlayers() {
+                if (gameOver) return;
+                
+                players.forEach(player => {
+                    // Bewegung basierend auf gedrückten Tasten
+                    let dx = 0;
+                    let dy = 0;
+                    
+                    if (keysPressed[player.controls.up]) dy -= player.speed;
+                    if (keysPressed[player.controls.down]) dy += player.speed;
+                    if (keysPressed[player.controls.left]) dx -= player.speed;
+                    if (keysPressed[player.controls.right]) dx += player.speed;
+                    
+                    // Diagonale Bewegung normalisieren
+                    if (dx !== 0 && dy !== 0) {
+                        const factor = 1 / Math.sqrt(2);
+                        dx *= factor;
+                        dy *= factor;
+                    }
+                    
+                    // Position aktualisieren
+                    player.x += dx;
+                    player.y += dy;
+                    
+                    // Spielfeldgrenzen einhalten
+                    player.x = Math.max(15, Math.min(player.x, 785));
+                    player.y = Math.max(15, Math.min(player.y, 585));
+                    
+                    // Element-Position aktualisieren
+                    player.element.style.left = (player.x - 15) + 'px';
+                    player.element.style.top = (player.y - 15) + 'px';
+                    
+                    // Rotation basierend auf Bewegungsrichtung
+                    if (dx !== 0 || dy !== 0) {
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+                        player.element.style.transform = `rotate(${angle}deg)`;
+                    }
+                });
+            }
+            
+            // Funktion zum Sammeln von Tokens in der Nähe
+            function collectNearbyTokens(player) {
+                energyTokens.forEach(token => {
+                    const tokenRect = {
+                        x: parseInt(token.style.left),
+                        y: parseInt(token.style.top),
+                        width: 30,
+                        height: 30
+                    };
+                    
+                    const playerRect = {
+                        x: player.x - 15,
+                        y: player.y - 15,
+                        width: 30,
+                        height: 30
+                    };
+                    
+                    // Prüfen, ob Spieler und Token kollidieren
+                    if (checkCollision(playerRect, tokenRect) && !token.collected) {
+                        // Token als gesammelt markieren
+                        token.collected = true;
+                        
+                        // Token entfernen
+                        gameContainer.removeChild(token);
+                        clearInterval(token.pulseInterval);
+                        
+                        // Aus Array entfernen
+                        const index = energyTokens.indexOf(token);
+                        if (index > -1) {
+                            energyTokens.splice(index, 1);
+                        }
+                        
+                        // Sound abspielen
+                        collectSound.currentTime = 0;
+                        collectSound.play();
+                        
+                        // Energie zum Spieler hinzufügen
+                        player.energy += 10;
+                        totalPlayerEnergy += 10;
+                        updatePlayerEnergyDisplay();
+                        
+                        // Prüfen, ob das Ziel erreicht wurde
+                        if (totalPlayerEnergy >= targetEnergy) {
+                            endGame(true, 'Gewonnen! Ihr habt genug Energie gesammelt!');
+                        }
+                        
+                        // Visuellen Effekt anzeigen
+                        showCollectEffect(tokenRect.x, tokenRect.y);
+                    }
+                });
+            }
+            
+            // Kollisionserkennung zwischen zwei Rechtecken
+            function checkCollision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+            
+            // Game Loop
+            const gameLoop = setInterval(() => {
+                updatePlayers();
+                
+                // Prüfen auf Interaktion mit Energiequellen
+                players.forEach(player => {
+                    energySources.forEach(source => {
+                        const sourceRect = {
+                            x: parseInt(source.style.left),
+                            y: parseInt(source.style.top),
+                            width: 64,
+                            height: 64
+                        };
+                        
+                        const playerRect = {
+                            x: player.x - 15,
+                            y: player.y - 15,
+                            width: 30,
+                            height: 30
+                        };
+                        
+                        // Prüfen, ob Spieler und Energiequelle kollidieren
+                        if (checkCollision(playerRect, sourceRect)) {
+                            // Visuelle Hervorhebung der Energiequelle
+                            source.style.outline = `2px solid ${player.color}`;
+                            
+                            // Interaktion mit Taste
+                            if (keysPressed[player.controls.collect]) {
+                                interactWithSource(player, source);
+                                // Taste zurücksetzen, um mehrfache Interaktionen zu vermeiden
+                                keysPressed[player.controls.collect] = false;
+                            }
+                        } else {
+                            // Hervorhebung entfernen
+                            source.style.outline = 'none';
+                        }
+                    });
+                });
+            }, 16); // ca. 60 FPS
         }
         
         function startTutorial() {
-            startGame();
+            startGame('single');
             
             // Tutorial-Nachricht
             const tutorialDiv = document.createElement('div');
@@ -701,8 +944,10 @@
             tutorialDiv.style.textAlign = 'center';
             tutorialDiv.style.width = '60%';
             tutorialDiv.innerHTML = 'Willkommen bei Energy Rush: Solar Sprint!<br><br>' +
-                                   'Klicke auf die Energiequellen, um Energie zu sammeln.<br><br>' +
-                                   'Achte auf Umweltereignisse und repariere beschädigte Anlagen.';
+                                   'Bewege dich mit den Pfeiltasten und sammle Energie mit der Leertaste.<br><br>' +
+                                   'Achte auf Umweltereignisse und repariere beschädigte Anlagen mit der Leertaste.<br><br>' +
+                                   'Im Koop-Modus steuert Spieler 1 (Engineer) mit WASD und Leertaste, ' +
+                                   'Spieler 2 (Collector) mit Pfeiltasten und Enter.';
             document.getElementById('game-container').appendChild(tutorialDiv);
         }
         
@@ -768,32 +1013,8 @@
                     energyToken.style.transform = `translateY(${floatY}px)`;
                 }, 50);
                 
-                // Klick-Handler
-                energyToken.onclick = function() {
-                    collectSound.currentTime = 0;
-                    collectSound.play();
-                    tokenAvailable = false;
-                    
-                    // Animation
-                    clearInterval(floatInterval);
-                    let tokenY = parseInt(energyToken.style.top);
-                    let alpha = 1.0;
-                    const animInterval = setInterval(() => {
-                        tokenY -= 2;
-                        alpha -= 0.05;
-                        energyToken.style.top = tokenY + 'px';
-                        energyToken.style.opacity = alpha;
-                        
-                        if (alpha <= 0) {
-                            clearInterval(animInterval);
-                            energyToken.remove();
-                            energyToken = null;
-                        }
-                    }, 50);
-                    
-                    // Energie zum Grid hinzufügen
-                    addEnergyToGrid(1);
-                };
+                // Kollisionserkennung für Spieler
+                energyToken.pulseInterval = floatInterval;
                 
                 document.getElementById('game-container').appendChild(energyToken);
             }
@@ -801,88 +1022,118 @@
             // Zufällige Ausfälle
             let broken = false;
             
-            source.onclick = function() {
-                if (broken) {
-                    // Reparieren
-                    repairSound.currentTime = 0;
-                    repairSound.play();
-                    broken = false;
-                    source.classList.remove('broken');
-                    source.style.filter = 'none';
-                    
-                    // Reparatur-Animation
-                    const repairEffect = document.createElement('div');
-                    repairEffect.style.position = 'absolute';
-                    repairEffect.style.width = '80px';
-                    repairEffect.style.height = '80px';
-                    repairEffect.style.borderRadius = '50%';
-                    repairEffect.style.backgroundColor = 'rgba(255, 255, 0, 0.5)';
-                    repairEffect.style.left = (x - 8) + 'px';
-                    repairEffect.style.top = (y - 8) + 'px';
-                    repairEffect.style.zIndex = '90';
-                    document.getElementById('game-container').appendChild(repairEffect);
-                    
-                    // Animation
-                    let scale = 1.0;
-                    let alpha = 0.5;
-                    const animInterval = setInterval(() => {
-                        scale += 0.1;
-                        alpha -= 0.05;
-                        repairEffect.style.transform = `scale(${scale})`;
-                        repairEffect.style.opacity = alpha;
+            // Interaktion mit Energiequellen für Spieler
+            source.interactable = true;
+            source.sourceX = x;
+            source.sourceY = y;
+            source.sourceName = name;
+            source.sourceType = type;
+            source.broken = broken;
+            
+            // Funktion zum Interagieren mit der Energiequelle
+            function interactWithSource(player, source) {
+                if (source.broken) {
+                    // Nur Engineer kann reparieren
+                    if (player.role === 'engineer' || player.role === 'engineer-collector') {
+                        // Reparieren
+                        repairSound.currentTime = 0;
+                        repairSound.play();
+                        source.broken = false;
+                        source.classList.remove('broken');
+                        source.style.filter = 'none';
                         
-                        if (alpha <= 0) {
-                            clearInterval(animInterval);
-                            repairEffect.remove();
-                        }
-                    }, 50);
-                    
-                    return;
-                }
-                
-                if (!tokenAvailable) {
-                    warningSound.currentTime = 0;
-                    warningSound.play();
-                    showWarning('Keine Energie verfügbar bei ' + name + '!');
+                        // Reparatur-Animation
+                        const repairEffect = document.createElement('div');
+                        repairEffect.style.position = 'absolute';
+                        repairEffect.style.width = '80px';
+                        repairEffect.style.height = '80px';
+                        repairEffect.style.borderRadius = '50%';
+                        repairEffect.style.backgroundColor = 'rgba(255, 255, 0, 0.5)';
+                        repairEffect.style.left = (source.sourceX - 8) + 'px';
+                        repairEffect.style.top = (source.sourceY - 8) + 'px';
+                        repairEffect.style.zIndex = '90';
+                        document.getElementById('game-container').appendChild(repairEffect);
+                        
+                        // Animation
+                        let scale = 1.0;
+                        let alpha = 0.5;
+                        const animInterval = setInterval(() => {
+                            scale += 0.1;
+                            alpha -= 0.05;
+                            repairEffect.style.transform = `scale(${scale})`;
+                            repairEffect.style.opacity = alpha;
+                            
+                            if (alpha <= 0) {
+                                clearInterval(animInterval);
+                                repairEffect.remove();
+                            }
+                        }, 50);
+                        
+                        showWarning(`${player.id === 1 ? 'Spieler 1' : 'Spieler 2'} hat ${source.sourceName} repariert!`);
+                    } else {
+                        // Collector kann nicht reparieren
+                        warningSound.currentTime = 0;
+                        warningSound.play();
+                        showWarning('Nur der Engineer kann Anlagen reparieren!');
+                    }
                     return;
                 }
                 
                 // Energie sammeln
-                collectSound.currentTime = 0;
-                collectSound.play();
-                tokenAvailable = false;
-                tokenIndicator.style.display = 'none';
+                if (!tokenAvailable) {
+                    warningSound.currentTime = 0;
+                    warningSound.play();
+                    showWarning('Keine Energie verfügbar bei ' + source.sourceName + '!');
+                    return;
+                }
                 
-                // Energietoken-Animation beim Sammeln
-                const token = document.createElement('div');
-                token.style.position = 'absolute';
-                token.style.width = '32px';
-                token.style.height = '32px';
-                token.style.left = (x + 16) + 'px';
-                token.style.top = (y + 16) + 'px';
-                token.style.backgroundImage = 'url(assets/images/energy-token.png)';
-                token.style.backgroundSize = 'contain';
-                token.style.zIndex = '100';
-                document.getElementById('game-container').appendChild(token);
-                
-                // Animation
-                let tokenY = parseInt(token.style.top);
-                let alpha = 1.0;
-                const animInterval = setInterval(() => {
-                    tokenY -= 2;
-                    alpha -= 0.05;
-                    token.style.top = tokenY + 'px';
-                    token.style.opacity = alpha;
+                // Nur Collector kann Energie sammeln
+                if (player.role === 'collector' || player.role === 'engineer-collector') {
+                    collectSound.currentTime = 0;
+                    collectSound.play();
+                    tokenAvailable = false;
                     
-                    if (alpha <= 0) {
-                        clearInterval(animInterval);
-                        token.remove();
-                    }
-                }, 50);
-                
-                // Energie zum Grid hinzufügen
-                addEnergyToGrid(1);
-            };
+                    // Energietoken-Animation beim Sammeln
+                    const token = document.createElement('div');
+                    token.style.position = 'absolute';
+                    token.style.width = '32px';
+                    token.style.height = '32px';
+                    token.style.left = (source.sourceX + 16) + 'px';
+                    token.style.top = (source.sourceY + 16) + 'px';
+                    token.style.backgroundImage = 'url(assets/images/energy-token.png)';
+                    token.style.backgroundSize = 'contain';
+                    token.style.zIndex = '100';
+                    document.getElementById('game-container').appendChild(token);
+                    
+                    // Animation
+                    let tokenY = parseInt(token.style.top);
+                    let alpha = 1.0;
+                    const animInterval = setInterval(() => {
+                        tokenY -= 2;
+                        alpha -= 0.05;
+                        token.style.top = tokenY + 'px';
+                        token.style.opacity = alpha;
+                        
+                        if (alpha <= 0) {
+                            clearInterval(animInterval);
+                            token.remove();
+                        }
+                    }, 50);
+                    
+                    // Energie zum Spieler und Grid hinzufügen
+                    player.energy += 1;
+                    totalPlayerEnergy += 1;
+                    updatePlayerEnergyDisplay();
+                    addEnergyToGrid(1);
+                    
+                    showWarning(`${player.id === 1 ? 'Spieler 1' : 'Spieler 2'} hat Energie gesammelt!`);
+                } else {
+                    // Engineer kann keine Energie sammeln
+                    warningSound.currentTime = 0;
+                    warningSound.play();
+                    showWarning('Nur der Collector kann Energie sammeln!');
+                }
+            }
             
             // Funktion zum Beschädigen der Energiequelle
             function breakSource() {
@@ -891,7 +1142,9 @@
                     source.classList.add('broken');
                     source.style.filter = 'grayscale(100%) brightness(50%)';
                     tokenAvailable = false;
-                    tokenIndicator.style.display = 'none';
+                    if (typeof tokenIndicator !== 'undefined') {
+                        tokenIndicator.style.display = 'none';
+                    }
                     
                     // Warnsound abspielen
                     warningSound.currentTime = 0;
